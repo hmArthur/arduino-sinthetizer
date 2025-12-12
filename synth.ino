@@ -59,7 +59,7 @@ int oct_shift = 0; //oitavador
 const float DIV = 1.0 / 1023.0; //constante para evitar divisao lenta
 
 
-const int n_sequences = 2; 
+const int n_sequences = 40; 
 const int max_notes = 8;
 
 // Variaveis de Debounce (Tempo minimo entre cliques)
@@ -68,9 +68,87 @@ const unsigned long debounce_time = 2*(10e5);//200ms
 
 //sequencias de notas para o arpegiador
 const int notes[n_sequences][max_notes] = {
-    {60, 64, 67, 71, 60, 64, 67, 61}, 
-    {62, 69, 69, 65, 64, 64, 64, 65}
+    {60, 64, 67, 71, 60, 64, 67, 61}, //in the end 
+    {62, 69, 69, 65, 64, 64, 64, 65}, //stranger things
+    // 0: Maior Ascendente
+    {60, 62, 64, 65, 67, 69, 71, 72}, 
+    // 1: Maior Descendente
+    {72, 71, 69, 67, 65, 64, 62, 60}, 
+    // 2: Menor Ascendente
+    {60, 62, 63, 65, 67, 68, 70, 72}, 
+    // 3: Menor Descendente
+    {72, 70, 68, 67, 65, 63, 62, 60}, 
+    // 4: Pentatônica Maior
+    {60, 62, 64, 67, 69, 67, 64, 62}, 
+    // 5: Pentatônica Menor
+    {60, 63, 65, 67, 70, 67, 65, 63},
+    // 6: Dórico
+    {60, 62, 63, 65, 67, 69, 70, 72},
+    // 7: Frígio
+    {60, 61, 63, 65, 67, 68, 70, 72},
+    // 8: Lídio
+    {60, 62, 64, 66, 67, 69, 71, 72},
+    // 9: Mixolídio
+    {60, 62, 64, 65, 67, 69, 70, 72},
+    // 10: Eólio
+    {60, 62, 63, 65, 67, 68, 70, 72},
+    // 11: Lócrio
+    {60, 61, 63, 65, 66, 68, 70, 72},
+    // 12: Cmaj7
+    {60, 64, 67, 71, 67, 64, 60, 64},
+    // 13: Cm7
+    {60, 63, 67, 70, 67, 63, 60, 63},
+    // 14: Cdim
+    {60, 63, 66, 69, 66, 63, 60, 63},
+    // 15: Cdom7
+    {60, 64, 67, 70, 67, 64, 60, 64},
+    // 16: Csus2
+    {60, 62, 67, 74, 67, 62, 60, 62},
+    // 17: Caug
+    {60, 64, 68, 76, 68, 64, 60, 64},
+    // 18: Tônica-3ª-5ª-3ª
+    {60, 63, 67, 63, 60, 63, 67, 63},
+    // 19: Sequência Quádrupla
+    {60, 62, 64, 65, 64, 62, 60, 62},
+    // 20: Alternância Tônica
+    {60, 67, 72, 67, 60, 67, 72, 67},
+    // 21: Terças Saltadas
+    {60, 63, 64, 67, 63, 67, 64, 60},
+    // 22: Oitavas e Quintas
+    {60, 72, 67, 79, 67, 72, 60, 67},
+    // 23: Intervalos Fixos
+    {60, 72, 60, 72, 60, 72, 60, 72},
+    // 24: Blues Hexa
+    {60, 63, 65, 66, 67, 70, 67, 63},
+    // 25: Tons Inteiros
+    {60, 62, 64, 66, 68, 70, 72, 70},
+    // 26: Harmônica Menor
+    {60, 62, 63, 65, 67, 68, 71, 72},
+    // 27: Cigana Húngara
+    {60, 62, 63, 66, 67, 68, 71, 72},
+    // 28: Japonesa (In Sen)
+    {60, 61, 65, 67, 70, 67, 65, 61},
+    // 29: Arpejo Invertido
+    {60, 67, 64, 72, 64, 67, 60, 64},
+    // 30: Escala Cruzada
+    {60, 74, 64, 77, 67, 79, 71, 84},
+    // 31: Progressão de Quartas
+    {60, 65, 70, 75, 70, 65, 60, 65},
+    // 32: Cluster (Tensão)
+    {60, 61, 62, 63, 64, 63, 62, 61},
+    // 33: Aleatório Menor
+    {63, 67, 70, 62, 68, 72, 60, 65},
+    // 34: Aleatório Maior
+    {60, 69, 64, 71, 67, 72, 62, 65},
+    // 35: Quatro em Movimento
+    {60, 62, 63, 64, 63, 62, 60, 62},
+    // 36: Salto de Oitava
+    {60, 72, 67, 79, 60, 72, 67, 79},
+    // 37: Cromático Desc.
+    {72, 71, 70, 69, 68, 67, 66, 65}
 };
+
+int amplitude = 0;
 
 //altera os leds com base no modo
 void refreshLeds(int mode) {
@@ -128,6 +206,7 @@ void updateControl(){
             sequence = 0;
             current_note = 0;
           }
+          oct_shift = 0; 
           last_press = time_now;
          } else if (digitalRead(B_SEQ) == LOW) {
             if(sequence > 0) {
@@ -137,6 +216,7 @@ void updateControl(){
               sequence = n_sequences-1;
               current_note = 0;
             }
+            oct_shift = 0;
            last_press = time_now;
          } 
   }
@@ -210,12 +290,15 @@ void updateControl(){
  //atribui frequencia de corte
  lpf.setCutoffFreq(cutoff_freq);
 
- refreshLeds(0);
- if((freq_a + freq_b) >= 0.33*257)
-    refreshLeds(1);
- if ((freq_a + freq_b) >= 0.66*257)
+ if (aamplitude >= 0.66*127)
     refreshLeds(2);
+ else if(amplitude >= 0.33*127)
+    refreshLeds(1);
+ else
+    refreshLeds(0);
+ 
 }
+
 
 
 AudioOutput_t updateAudio(){
@@ -227,6 +310,8 @@ AudioOutput_t updateAudio(){
                               // ai surge a necessidade de deslocar 2 bits, se nao ocorre saturacaoã
   int mixed_signal = (osc_a.next() + osc_b.next()) >> 2;
 
+  amplitude = abs(mixed_signal*gain);
+  
   //aplica o ganho instantaneo no sinal misto
   return lpf.next(mixed_signal * gain);
 }
